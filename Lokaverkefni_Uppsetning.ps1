@@ -159,33 +159,40 @@ $nemOUpath = (Get-ADOrganizationalUnit -Filter { name -like 'Nemendur' }).Distin
 
 ##############################################
     function buildSite{
-        param(
-            [Parameter(Mandatory=$true, HelpMessage="Sláðu inn Username")]
-            [string]$userN  
-        )
+                
+    }
 
-        Add-DnsServerResourceRecord -CName -Name "$userN" -HostNameAlias "www.tskloi.is" -ZoneName "tskloi.is"
+#import SQL Server module
+Import-Module SQLPS -DisableNameChecking
 
-        # Búa til nýja möppu í wwwroot
-        New-Item "C:\inetpub\wwwroot\$userN.tskloi.is" -ItemType Directory
-        # Búa til html skjal sem inniheldur "Vefsíðan www.eep.is" í nýju möppuna
-        New-Item "C:\inetpub\wwwroot\$userN.tskloi.is\index.html" -ItemType File -Value "Vefsíðan $userN.tskloi.is"
-        # Búa til nýja vefsíðu á vefþjóninn
-        New-Website -Name "$userN.tskloi.is" -HostHeader "$userN.tskloi.is" -PhysicalPath "C:\inetpub\wwwroot\$userN.tskloi.is\"  
+function buildSql{
+
+    $TBnotaindur = (Get-ADUser -Properties "Samaccountname" -SearchBase "OU=Tölvubraut,OU=Upplýsingatækniskólinn,OU=Nemendur,OU=Notendur, DC=tskloi19, DC=local" -Filter *).Samaccountname
+    $TBkennarar = (Get-ADGroup -Identity "Tölvubraut_Kennarar").Name
+    foreach ($n in $TBnotaindur){
+
+        $instanceName = "WIN3A-10"
+        $dbUserName = $n
+        $password = "pass.123"
+        $databaseName = $n
+        $roleName = "db_owner"
         
-        #sæki núverandi réttindi
-        $rettindi = Get-Acl -Path C:\inetpub\wwwroot\$userN.tskloi.is
-        #bý til þau réttindi sem ég ætla að bæta við möppuna
-        $nyrettindi = New-Object System.Security.AccessControl.FileSystemAccessRule($($env:userdomain + "\" + $userN),"Modify","Allow")
-        $nyrettindi2 = New-Object System.Security.AccessControl.FileSystemAccessRule($($env:userdomain + "\ "),"Modify","Allow")
-        #Hver á að fá réttindin, hvaða réttindi á viðkomandi að fá, erum við að leyfa eða banna (allow eða deny)
-        #bæti nýju réttindunum við þau sem ég sótti áðan
-        $rettindi.AddAccessRule($nyrettindi)
-        $rettindi.AddAccessRule($nyrettindi2)
-        #Set réttindin aftur á möppuna
-        Set-Acl -Path C:\inetpub\wwwroot\$userN.tskloi.is $rettindi                   
-    }
 
-    function buildSql{
+        $server = new-Object Microsoft.SqlServer.Management.Smo.Server("WIN3A-10")
+        $db = New-Object Microsoft.SqlServer.Management.Smo.Database($server, $databaseName)
+        $db.Create()
 
+        $login = new-object Microsoft.SqlServer.Management.Smo.Login("WIN3A-10", $dbUserName)
+        $login.LoginType = 'SqlLogin'
+        $login.PasswordPolicyEnforced = $false
+        $login.PasswordExpirationEnabled = $false
+        $login.Create($password)
+
+        $server = new-Object Microsoft.SqlServer.Management.Smo.Server("WIN3A-10")
+        $db = New-Object Microsoft.SqlServer.Management.Smo.Database
+        $db = $server.Databases.Item($databaseName)
+        $db.SetOwner($dbUserName, $TRUE)
+        $db.Alter()
+        Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Username $dbUserName -Password $password 
     }
+}
