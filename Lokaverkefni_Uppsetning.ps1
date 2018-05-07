@@ -183,16 +183,19 @@ function buildSql{
         $db.Create()
 
         $login = new-object Microsoft.SqlServer.Management.Smo.Login("WIN3A-10", $dbUserName)
-        $login.LoginType = 'SqlLogin'
+        $login.LoginType = 'WindowsUser'
         $login.PasswordPolicyEnforced = $false
-        $login.PasswordExpirationEnabled = $false
-        $login.Create($password)
+        #$login.PasswordExpirationEnabled = $false
+        #$login.Create($password)
 
         $server = new-Object Microsoft.SqlServer.Management.Smo.Server("WIN3A-10")
         $db = New-Object Microsoft.SqlServer.Management.Smo.Database
         $db = $server.Databases.Item($databaseName)
-        $db.SetOwner($dbUserName, $TRUE)
-        $db.Alter()
+        
+        $Q = "exec sp_addrolemember @rolename = '$roleName', @membername = '${env:UserDomain}\$TBkennarar'" 
+
         Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Username $dbUserName -Password $password 
+        Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Query "EXEC sp_changedbowner '$dbUserName'" 
+        Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Query $Q       
     }
 }
