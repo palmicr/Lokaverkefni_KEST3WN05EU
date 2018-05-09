@@ -7,13 +7,16 @@ New-ADGroup -Name AllirNotendur -Path $notOUpath -GroupScope Global
 New-ADOrganizationalUnit -Name Starfsmenn -Path $notOUpath -ProtectedFromAccidentalDeletion $false
 $starfOUpath = (Get-ADOrganizationalUnit -Filter { name -like 'Starfsmenn' }).DistinguishedName
 New-ADGroup -Name AllirStarfsmenn -Path $starfOUpath -GroupScope Global
+Add-ADGroupMember -Identity AllirNotendur -Members AllirStarfsmenn
 ##############################################
 New-ADOrganizationalUnit -Name Nemendur -Path $notOUpath -ProtectedFromAccidentalDeletion $false
 $nemOUpath = (Get-ADOrganizationalUnit -Filter { name -like 'Nemendur' }).DistinguishedName
 New-ADGroup -Name AllirNemendur -Path $nemOUpath -GroupScope Global
+Add-ADGroupMember -Identity AllirNotendur -Members AllirNemendur
 ##############################################
 }
 
+############################################################################################ USERS using CSV file ON DOMAIN CONTROLLER
 function CreateUsers {
 $notendur = Import-Csv .\downloads\lokaverk_notendur.csv
 ##############################################
@@ -144,53 +147,52 @@ $nemOUpath = (Get-ADOrganizationalUnit -Filter { name -like 'Nemendur' }).Distin
                  }
                  New-ADUser @hashUser
                  Add-ADGroupMember -Identity $($braut + "_" + $hlutverk) -Members $username
-
     }
 }
 
 
 
-############################################################################################
+############################################################################################ Do NO USE ON DOMAIN CONTROLLER
     function buildSite{
                 
     }
 
 
-############################################################################################
+############################################################################################ Do NO USE ON DOMAIN CONTROLLER
 #import SQL Server module
 Import-Module SQLPS -DisableNameChecking
 
-function buildSql{
+    function buildSql{
 
-    $TBnotaindur = (Get-ADUser -Properties "Samaccountname" -SearchBase "OU=Tölvubraut,OU=Upplýsingatækniskólinn,OU=Nemendur,OU=Notendur, DC=tskloi19, DC=local" -Filter *).Samaccountname
-    $TBkennarar = (Get-ADGroup -Identity "Tölvubraut_Kennarar").Name
-    foreach ($n in $TBnotaindur){
+        $TBnotaindur = (Get-ADUser -Properties "Samaccountname" -SearchBase "OU=Tölvubraut,OU=Upplýsingatækniskólinn,OU=Nemendur,OU=Notendur, DC=tskloi19, DC=local" -Filter *).Samaccountname
+        $TBkennarar = (Get-ADGroup -Identity "Tölvubraut_Kennarar").Name
+        foreach ($n in $TBnotaindur){
 
-        $instanceName = "WIN3A-10"
-        $dbUserName = $n
-        $password = "pass.123"
-        $databaseName = $n
-        $roleName = "db_owner"
+            $instanceName = "WIN3A-10"
+            $dbUserName = $n
+            $password = "pass.123"
+            $databaseName = $n
+            $roleName = "db_owner"
         
 
-        $server = new-Object Microsoft.SqlServer.Management.Smo.Server("WIN3A-10")
-        $db = New-Object Microsoft.SqlServer.Management.Smo.Database($server, $databaseName)
-        $db.Create()
+            $server = new-Object Microsoft.SqlServer.Management.Smo.Server("WIN3A-10")
+            $db = New-Object Microsoft.SqlServer.Management.Smo.Database($server, $databaseName)
+            $db.Create()
 
-        $login = new-object Microsoft.SqlServer.Management.Smo.Login("WIN3A-10", $dbUserName)
-        $login.LoginType = 'WindowsUser'
-        $login.PasswordPolicyEnforced = $false
-        #$login.PasswordExpirationEnabled = $false
-        #$login.Create($password)
+            $login = new-object Microsoft.SqlServer.Management.Smo.Login("WIN3A-10", $dbUserName)
+            $login.LoginType = 'WindowsUser'
+            $login.PasswordPolicyEnforced = $false
+            #$login.PasswordExpirationEnabled = $false
+            #$login.Create($password)
 
-        $server = new-Object Microsoft.SqlServer.Management.Smo.Server("WIN3A-10")
-        $db = New-Object Microsoft.SqlServer.Management.Smo.Database
-        $db = $server.Databases.Item($databaseName)
+            $server = new-Object Microsoft.SqlServer.Management.Smo.Server("WIN3A-10")
+            $db = New-Object Microsoft.SqlServer.Management.Smo.Database
+            $db = $server.Databases.Item($databaseName)
         
-        $Q = "exec sp_addrolemember @rolename = '$roleName', @membername = '${env:UserDomain}\$TBkennarar'" 
+            $Q = "exec sp_addrolemember @rolename = '$roleName', @membername = '${env:UserDomain}\$TBkennarar'" 
 
-        Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Username $dbUserName -Password $password 
-        Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Query "EXEC sp_changedbowner '$dbUserName'" 
-        Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Query $Q       
+            Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Username $dbUserName -Password $password 
+            Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Query "EXEC sp_changedbowner '$dbUserName'" 
+            Invoke-Sqlcmd -ServerInstance "WIN3A-10" -Database $databaseName -Query $Q       
+        }
     }
-}
