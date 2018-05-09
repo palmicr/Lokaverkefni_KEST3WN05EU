@@ -144,24 +144,19 @@ $nemOUpath = (Get-ADOrganizationalUnit -Filter { name -like 'Nemendur' }).Distin
                  }
                  New-ADUser @hashUser
                  Add-ADGroupMember -Identity $($braut + "_" + $hlutverk) -Members $username
-        ##############################################
-        #Create Web and Sql
-        #if($hlutverk -eq "Nemandi"){
-
-        #}
-        ##############################################
-        #Create Sql
 
     }
 }
 
 
 
-##############################################
+############################################################################################
     function buildSite{
                 
     }
 
+
+############################################################################################
 #import SQL Server module
 Import-Module SQLPS -DisableNameChecking
 
