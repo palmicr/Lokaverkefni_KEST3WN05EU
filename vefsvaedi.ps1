@@ -8,18 +8,21 @@
         # Búa til html skjal sem inniheldur "Vefsíðan www.eep.is" í nýju möppuna
         New-Item "C:\inetpub\wwwroot\$userN.tskloi.is\index.html" -ItemType File -Value "Vefsíðan $userN.tskloi.is"
         # Búa til nýja vefsíðu á vefþjóninn
-        New-Website -Name "$userN.tskloi.is" -HostHeader "$userN.tskloi.is" -PhysicalPath "C:\inetpub\wwwroot\$userN.tskloi.is"
-        New-WebBinding -Name $($userN +".tskloi.is") -HostHeader $("www." + $userN +".eep.is")
+        #New-Website -Name "$userN.tskloi.is" -HostHeader "$userN.tskloi.is" -PhysicalPath "C:\inetpub\wwwroot\$userN.tskloi.is"
+        #New-WebBinding -Name $($userN +".tskloi.is") -HostHeader $("www." + $userN +".eep.is")
  
         #sæki núverandi réttindi
         $rettindi = Get-Acl -Path C:\inetpub\wwwroot\$userN.tskloi.is
         #bý til þau réttindi sem ég ætla að bæta við möppuna
         $nyrettindi = New-Object System.Security.AccessControl.FileSystemAccessRule($($env:userdomain + "\" + $userN),"Modify","Allow")
         $nyrettindi2 = New-Object System.Security.AccessControl.FileSystemAccessRule($($env:userdomain + "\tölvubraut_kennarar"),"Modify","Allow")
+        $nyrettindi3 = New-Object System.Security.AccessControl.FileSystemAccessRule($("WIN3A-10\IIS_IUSRS"),"Modify","Allow")
         #Hver á að fá réttindin, hvaða réttindi á viðkomandi að fá, erum við að leyfa eða banna (allow eða deny)
         #bæti nýju réttindunum við þau sem ég sótti áðan
         $rettindi.AddAccessRule($nyrettindi)
         $rettindi.AddAccessRule($nyrettindi2)
+        $rettindi.AddAccessRule($nyrettindi3)
+        $rettindi.SetAccessRuleProtection($true,$true)
         #Set réttindin aftur á möppuna
         Set-Acl -Path "C:\inetpub\wwwroot\$userN.tskloi.is" $rettindi                  
     }
